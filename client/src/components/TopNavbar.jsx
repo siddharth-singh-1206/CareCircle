@@ -102,12 +102,12 @@ export default function TopNavbar({ onAddRecordClick }) {
           <span>Add Record</span>
         </button>
 
-        {/* User Circular Avatar with letter S */}
+        {/* User Circular Avatar with dynamic initial */}
         <div
-          className="w-8 h-8 rounded-full bg-[#00A896] text-white text-xs font-bold flex items-center justify-center shadow-xs cursor-pointer"
-          title={user?.name || 'Siddharth Sharma'}
+          className="w-8 h-8 rounded-full bg-[#00A896] text-white text-xs font-bold flex items-center justify-center shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
+          title={user?.name || 'CareCircle User'}
         >
-          S
+          {user?.name ? user.name.trim().charAt(0).toUpperCase() : 'C'}
         </div>
 
       </div>

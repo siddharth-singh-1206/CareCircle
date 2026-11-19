@@ -32,13 +32,26 @@ app.use('/api/documents', require('./routes/documentRoutes'));
 app.use('/api/shares', require('./routes/shareRoutes'));
 app.use('/api/emergency', require('./routes/emergencyRoutes'));
 
-// Base health check
+// Root API welcome
+app.get('/', (req, res) => {
+  res.status(200).json({
+    app: 'CareCircle - Family Health Management Platform',
+    status: 'active',
+    documentation: '/api/health',
+    version: '1.0.1',
+  });
+});
+
+// Base health check & diagnostics
 app.get('/api/health', (req, res) => {
+  const uptime = process.uptime();
   res.status(200).json({
     status: 'online',
     app: 'CareCircle - Family Health Management Platform API',
-    version: '1.0.0',
+    version: '1.0.1',
+    uptime: `${Math.floor(uptime / 60)}m ${Math.floor(uptime % 60)}s`,
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
   });
 });
 
