@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Medication = require('../models/Medication');
 const Member = require('../models/Member');
 const { protect } = require('../middleware/auth');
@@ -10,7 +11,15 @@ router.get('/', protect, async (req, res) => {
   try {
     const { memberId, activeOnly } = req.query;
     const filter = {};
-    if (memberId) filter.memberId = memberId;
+
+    // Tenancy isolation
+    if (req.userFamilyId) {
+      filter.familyId = req.userFamilyId;
+    }
+
+    if (memberId && mongoose.Types.ObjectId.isValid(memberId)) {
+      filter.memberId = memberId;
+    }
     if (activeOnly === 'true') filter.isActive = true;
 
     const medications = await Medication.find(filter).sort({ createdAt: -1 });
@@ -26,7 +35,15 @@ router.get('/schedule/today', protect, async (req, res) => {
   try {
     const { memberId } = req.query;
     const filter = { isActive: true };
-    if (memberId) filter.memberId = memberId;
+
+    // Tenancy isolation
+    if (req.userFamilyId) {
+      filter.familyId = req.userFamilyId;
+    }
+
+    if (memberId && mongoose.Types.ObjectId.isValid(memberId)) {
+      filter.memberId = memberId;
+    }
 
     const medications = await Medication.find(filter).populate('memberId', 'fullName relation avatar');
     
@@ -99,6 +116,11 @@ router.post('/', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Member not found' });
     }
 
+    // Tenancy check
+    if (req.userFamilyId && member.familyId.toString() !== req.userFamilyId.toString()) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You cannot add medications to another family' });
+    }
+
     const medication = await Medication.create({
       memberId,
       familyId: member.familyId,
@@ -131,6 +153,11 @@ router.post('/:id/log', protect, async (req, res) => {
     const medication = await Medication.findById(req.params.id);
     if (!medication) {
       return res.status(404).json({ success: false, message: 'Medication not found' });
+    }
+
+    // Tenancy check
+    if (req.userFamilyId && medication.familyId.toString() !== req.userFamilyId.toString()) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You cannot modify another family\'s medication' });
     }
 
     // Check if a log already exists for this date and timeSlot
@@ -170,6 +197,11 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Medication not found' });
     }
 
+    // Tenancy check
+    if (req.userFamilyId && medication.familyId.toString() !== req.userFamilyId.toString()) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You cannot modify another family\'s medication' });
+    }
+
     medication = await Medication.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
@@ -188,6 +220,11 @@ router.delete('/:id', protect, async (req, res) => {
     const medication = await Medication.findById(req.params.id);
     if (!medication) {
       return res.status(404).json({ success: false, message: 'Medication not found' });
+    }
+
+    // Tenancy check
+    if (req.userFamilyId && medication.familyId.toString() !== req.userFamilyId.toString()) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You cannot delete another family\'s medication' });
     }
 
     await Medication.findByIdAndDelete(req.params.id);
