@@ -3,10 +3,17 @@ const router = express.Router();
 const Member = require('../models/Member');
 const HealthRecord = require('../models/HealthRecord');
 const Medication = require('../models/Medication');
+const createRateLimiter = require('../middleware/rateLimiter');
+
+const emergencyLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: 'Emergency endpoint rate limit reached. Please wait a moment before trying again.',
+});
 
 // @route   GET /api/emergency/:code
 // @desc    Public Emergency Profile - returns life-saving info instantly
-router.get('/:code', async (req, res) => {
+router.get('/:code', emergencyLimiter, async (req, res) => {
   try {
     const member = await Member.findOne({ emergencyCode: req.params.code });
     if (!member) {
