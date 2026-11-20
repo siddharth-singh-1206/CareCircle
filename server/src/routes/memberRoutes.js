@@ -31,6 +31,11 @@ router.get('/:id', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Member not found' });
     }
 
+    // Tenancy check: Ensure member belongs to requester's family
+    if (req.userFamilyId && member.familyId.toString() !== req.userFamilyId.toString()) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Access to this profile is restricted to family owner' });
+    }
+
     // Get aggregated statistics
     const [allergies, chronicConditions, activeMeds, recentDocs, vitals] = await Promise.all([
       HealthRecord.find({ memberId: member._id, type: 'allergy' }),
@@ -113,6 +118,11 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Member not found' });
     }
 
+    // Tenancy check: Ensure member belongs to requester's family
+    if (req.userFamilyId && member.familyId.toString() !== req.userFamilyId.toString()) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You cannot modify members of another family' });
+    }
+
     member = await Member.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
@@ -131,6 +141,11 @@ router.delete('/:id', protect, async (req, res) => {
     const member = await Member.findById(req.params.id);
     if (!member) {
       return res.status(404).json({ success: false, message: 'Member not found' });
+    }
+
+    // Tenancy check: Ensure member belongs to requester's family
+    if (req.userFamilyId && member.familyId.toString() !== req.userFamilyId.toString()) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You cannot delete members of another family' });
     }
 
     await Promise.all([

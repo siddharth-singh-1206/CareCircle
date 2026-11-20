@@ -10,6 +10,12 @@ router.get('/', protect, async (req, res) => {
   try {
     const { memberId, type } = req.query;
     const filter = {};
+
+    // Tenancy isolation
+    if (req.userFamilyId) {
+      filter.familyId = req.userFamilyId;
+    }
+
     if (memberId) filter.memberId = memberId;
     if (type) filter.type = type;
 
@@ -29,6 +35,11 @@ router.post('/', protect, async (req, res) => {
     const member = await Member.findById(memberId);
     if (!member) {
       return res.status(404).json({ success: false, message: 'Member not found' });
+    }
+
+    // Tenancy check
+    if (req.userFamilyId && member.familyId.toString() !== req.userFamilyId.toString()) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You cannot add records to another family' });
     }
 
     const record = await HealthRecord.create({
@@ -59,6 +70,11 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Record not found' });
     }
 
+    // Tenancy check
+    if (req.userFamilyId && record.familyId.toString() !== req.userFamilyId.toString()) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You cannot modify records of another family' });
+    }
+
     record = await HealthRecord.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
@@ -77,6 +93,11 @@ router.delete('/:id', protect, async (req, res) => {
     const record = await HealthRecord.findById(req.params.id);
     if (!record) {
       return res.status(404).json({ success: false, message: 'Record not found' });
+    }
+
+    // Tenancy check
+    if (req.userFamilyId && record.familyId.toString() !== req.userFamilyId.toString()) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You cannot delete records of another family' });
     }
 
     await HealthRecord.findByIdAndDelete(req.params.id);
