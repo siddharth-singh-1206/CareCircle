@@ -50,6 +50,40 @@ const accessGrantSchema = new mongoose.Schema({
     ],
     default: ['overview', 'medications', 'allergies', 'prescriptions'],
   }],
+  // Selective Document Privacy: only specific documents authorized by family
+  permittedDocuments: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Document',
+  }],
+  // Patient Chief Complaint: what happened and symptoms
+  chiefComplaint: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  urgency: {
+    type: String,
+    enum: ['routine', 'urgent', 'follow_up'],
+    default: 'routine',
+  },
+  // If doctor rejects request
+  rejectionReason: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  // Doctor recommendation / specialist referral if rejected
+  referralDoctor: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  // Interactive consultation comments left by attending doctor
+  doctorNotes: [{
+    comment: { type: String, required: true },
+    doctorName: { type: String, default: 'Attending Physician' },
+    createdAt: { type: Date, default: Date.now },
+  }],
   validFrom: {
     type: Date,
     default: Date.now,
@@ -60,8 +94,8 @@ const accessGrantSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'revoked', 'expired'],
-    default: 'active',
+    enum: ['pending', 'active', 'rejected', 'revoked', 'expired'],
+    default: 'pending',
   },
   accessLog: [{
     accessedAt: { type: Date, default: Date.now },

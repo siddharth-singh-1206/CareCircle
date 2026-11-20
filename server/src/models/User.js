@@ -29,6 +29,21 @@ const userSchema = new mongoose.Schema({
     enum: ['family_owner', 'member', 'doctor'],
     default: 'family_owner',
   },
+  specialization: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  hospital: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  registrationNumber: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   avatar: {
     type: String,
     default: '',
