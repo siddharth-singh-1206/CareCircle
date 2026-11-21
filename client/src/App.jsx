@@ -8,8 +8,10 @@ import FamilyMembers from './pages/FamilyMembers';
 import Medications from './pages/Medications';
 import Documents from './pages/Documents';
 import DoctorSharing from './pages/DoctorSharing';
+import DoctorDirectory from './pages/DoctorDirectory';
 import EmergencyView from './pages/EmergencyView';
 import DoctorPortal from './pages/DoctorPortal';
+import DoctorDashboard from './pages/DoctorDashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
@@ -18,7 +20,7 @@ const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F7FAF9] text-deepteal text-sm font-semibold">
+      <div className="min-h-screen flex items-center justify-center bg-[#F7FAF9] text-[#013A40] text-sm font-semibold">
         Loading CareCircle...
       </div>
     );
@@ -27,6 +29,15 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
   return children;
+};
+
+// Role-aware Home dispatcher
+const HomeDispatcher = () => {
+  const { user } = useAuth();
+  if (user?.role === 'doctor') {
+    return <DoctorDashboard />;
+  }
+  return <Dashboard />;
 };
 
 // Main App Layout matching the screenshot: Left Sidebar + Top Navbar + Main Content
@@ -55,18 +66,29 @@ export default function App() {
       <Router>
         <Routes>
           {/* Public Emergency SOS & Doctor Portal Routes */}
+          <Route path="/emergency" element={<EmergencyView />} />
           <Route path="/emergency/:code" element={<EmergencyView />} />
           <Route path="/doctor-access/:token" element={<DoctorPortal />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Protected Family Hub Routes */}
+          {/* Main App Routes with Role Dispatcher */}
           <Route
             path="/"
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Dashboard />
+                  <HomeDispatcher />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/doctor"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DoctorDashboard />
                 </Layout>
               </ProtectedRoute>
             }
@@ -107,6 +129,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <DoctorSharing />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/doctors"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DoctorDirectory />
                 </Layout>
               </ProtectedRoute>
             }
