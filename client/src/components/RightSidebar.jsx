@@ -11,7 +11,8 @@ import {
   LogOut,
   ChevronDown,
   Plus,
-  HeartHandshake
+  HeartHandshake,
+  Stethoscope
 } from 'lucide-react';
 
 export default function RightSidebar() {
@@ -23,7 +24,7 @@ export default function RightSidebar() {
     { name: 'Family', to: '/members', icon: Users2 },
     { name: 'Medications', to: '/medications', icon: Pill },
     { name: 'Documents', to: '/documents', icon: FolderLock },
-    { name: 'Doctor Access', to: '/doctor-sharing', icon: Share2 },
+    { name: 'Find Doctors', to: '/doctors', icon: Stethoscope },
   ];
 
   return (
@@ -149,8 +150,7 @@ export default function RightSidebar() {
         {/* Emergency SOS Button */}
         {selectedMember && (
           <Link
-            to={`/emergency/${selectedMember.emergencyCode}`}
-            target="_blank"
+            to={`/emergency/${selectedMember.emergencyCode || 'EMG-RAMESH74'}`}
             className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-tomato-500 hover:bg-tomato-600 text-white text-xs font-bold transition-all shadow-sm group"
           >
             <div className="flex items-center gap-2">

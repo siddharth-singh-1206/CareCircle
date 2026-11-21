@@ -13,7 +13,8 @@ import {
   ChevronDown, 
   PlusCircle,
   Menu,
-  X
+  X,
+  Stethoscope
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -28,7 +29,7 @@ export default function Navbar() {
     { label: 'Family Members', path: '/members', icon: Users },
     { label: 'Medications', path: '/medications', icon: Pill },
     { label: 'Medical Vault', path: '/documents', icon: FolderLock },
-    { label: 'Doctor Sharing', path: '/doctor-sharing', icon: Share2 },
+    { label: 'Find Doctors', path: '/doctors', icon: Stethoscope },
   ];
 
   const handleSelectMember = (member) => {
@@ -142,8 +143,7 @@ export default function Navbar() {
             {/* Quick Emergency Mode Button */}
             {selectedMember && (
               <Link
-                to={`/emergency/${selectedMember.emergencyCode}`}
-                target="_blank"
+                to={`/emergency/${selectedMember.emergencyCode || 'EMG-RAMESH74'}`}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-lg text-xs sm:text-sm font-bold tracking-tight shadow-sm hover:shadow transition-all group"
                 title="Open Emergency SOS Profile"
               >
