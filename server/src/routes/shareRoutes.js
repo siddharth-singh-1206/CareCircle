@@ -9,10 +9,19 @@ const Document = require('../models/Document');
 const { protect } = require('../middleware/auth');
 
 // @route   POST /api/shares
-// @desc    Create a new time-bound, category-specific doctor access grant
+// @desc    Create a new time-bound, category-specific doctor access grant or patient consultation request
 router.post('/', protect, async (req, res) => {
   try {
-    const { memberId, doctorName, doctorEmail, permittedCategories, validityHours } = req.body;
+    const { 
+      memberId, 
+      doctorName, 
+      doctorEmail, 
+      permittedCategories, 
+      permittedDocuments,
+      chiefComplaint,
+      urgency,
+      validityHours 
+    } = req.body;
 
     const member = await Member.findById(memberId);
     if (!member) {
@@ -35,8 +44,11 @@ router.post('/', protect, async (req, res) => {
       permittedCategories: permittedCategories && permittedCategories.length > 0 
         ? permittedCategories 
         : ['overview', 'medications', 'allergies', 'prescriptions'],
+      permittedDocuments: permittedDocuments || [],
+      chiefComplaint: chiefComplaint || '',
+      urgency: urgency || 'routine',
       expiresAt,
-      status: 'active',
+      status: 'pending', // Starts as pending doctor triage and acceptance
     });
 
     res.status(201).json({
@@ -44,6 +56,7 @@ router.post('/', protect, async (req, res) => {
       grant,
       shareUrl: `/doctor-access/${token}`,
       passcode,
+      message: 'Consultation request sent to doctor. Status: Pending Acceptance.',
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -84,6 +97,13 @@ router.put('/:id/revoke', protect, async (req, res) => {
     const grant = await AccessGrant.findById(req.params.id);
     if (!grant) {
       return res.status(404).json({ success: false, message: 'Access grant not found' });
+    }
+
+    // Tenancy check: Ensure grant was created by this family
+    const isFamilyOwner = req.userFamilyId && grant.familyId.toString() === req.userFamilyId.toString();
+    const isGrantCreator = grant.grantedBy && grant.grantedBy.toString() === req.user._id.toString();
+    if (!isFamilyOwner && !isGrantCreator) {
+      return res.status(403).json({ success: false, message: 'Forbidden: You cannot revoke another family\'s grant' });
     }
 
     grant.status = 'revoked';
@@ -206,6 +226,101 @@ router.get('/doctor/:token', async (req, res) => {
     await Promise.all(promises);
 
     res.status(200).json({ success: true, data: responsePayload });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route   GET /api/shares/doctor/all-requests
+// @desc    List all patient consultation requests for the logged-in doctor
+router.get('/doctor/all-requests', protect, async (req, res) => {
+  try {
+    const doctorEmail = req.user.email || '';
+    const doctorName = req.user.name || '';
+    const nameMatch = doctorName.replace(/^Dr\.?\s*/i, '').trim();
+
+    // Match requests directed to this doctor
+    const doctorFilter = [
+      { doctorEmail: doctorEmail },
+    ];
+    if (nameMatch) {
+      doctorFilter.push({ doctorName: new RegExp(nameMatch, 'i') });
+    }
+    // In development/demo, also include general unassigned requests
+    if (process.env.NODE_ENV !== 'production') {
+      doctorFilter.push({ doctorEmail: '' });
+    }
+
+    const query = {
+      $or: doctorFilter,
+      status: { $in: ['pending', 'active', 'rejected'] },
+    };
+
+    const requests = await AccessGrant.find(query)
+      .populate('memberId')
+      .populate('permittedDocuments')
+      .populate('grantedBy', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, requests });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route   PUT /api/shares/:id/respond
+// @desc    Doctor accepts or rejects a patient consultation request
+router.put('/:id/respond', protect, async (req, res) => {
+  try {
+    const { action, rejectionReason, referralDoctor } = req.body; // action: 'accept' | 'reject'
+    const grant = await AccessGrant.findById(req.params.id);
+
+    if (!grant) {
+      return res.status(404).json({ success: false, message: 'Consultation request not found' });
+    }
+
+    if (action === 'accept') {
+      grant.status = 'active';
+      grant.rejectionReason = '';
+      grant.referralDoctor = '';
+    } else if (action === 'reject') {
+      grant.status = 'rejected';
+      grant.rejectionReason = rejectionReason || 'Specialty mismatch or clinic capacity reached';
+      grant.referralDoctor = referralDoctor || '';
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid action' });
+    }
+
+    await grant.save();
+    res.status(200).json({ success: true, grant, message: `Request ${action === 'accept' ? 'accepted' : 'declined'} successfully` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route   POST /api/shares/:id/comment
+// @desc    Doctor appends clinical consultation advice / comments
+router.post('/:id/comment', protect, async (req, res) => {
+  try {
+    const { comment } = req.body;
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({ success: false, message: 'Comment text required' });
+    }
+
+    const grant = await AccessGrant.findById(req.params.id);
+    if (!grant) {
+      return res.status(404).json({ success: false, message: 'Consultation grant not found' });
+    }
+
+    const doctorName = req.user.name || 'Dr. Arvind Mehta';
+    grant.doctorNotes.push({
+      comment: comment.trim(),
+      doctorName,
+      createdAt: new Date(),
+    });
+
+    await grant.save();
+    res.status(200).json({ success: true, doctorNotes: grant.doctorNotes, message: 'Clinical note added' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
